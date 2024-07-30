@@ -1,3 +1,6 @@
+# Custom rules
+*.png
+
 ### Intellij ###
 .idea
 
