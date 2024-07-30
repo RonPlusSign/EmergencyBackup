@@ -6,3 +6,4 @@ edition = "2021"
 [dependencies]
 mouse_position = "0.1.4"
 rand = "0.9.0-alpha.1"
+guessture = "0.1.0"
