@@ -1,4 +1,5 @@
 mod pattern_recognition;
+mod configuration;
 
 use std::collections::VecDeque;
 use std::thread::sleep;

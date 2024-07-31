@@ -3,9 +3,10 @@ use guessture::{find_matching_template_with_defaults, Path2D, Template};
 use mouse_position::mouse_position::Mouse;
 use plotters::drawing::IntoDrawingArea;
 use plotters::style::{Color};
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Eq, PartialEq)]
-pub enum Shape { Circle, Square, Triangle, Unknown }
+#[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub enum Shape { Unknown, Circle, Square, Triangle }
 
 pub enum Confirm { Yes, No }
 

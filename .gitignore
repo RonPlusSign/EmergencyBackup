@@ -1,5 +1,7 @@
 # Custom rules
 *.png
+*.json
+config
 
 ### Intellij ###
 .idea
