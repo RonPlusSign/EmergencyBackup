@@ -1,69 +1,75 @@
 mod pattern_recognition;
 mod configuration;
 
-use std::collections::VecDeque;
-use std::thread::sleep;
-use std::time::Duration;
-use mouse_position::mouse_position::{Mouse};
-use pattern_recognition::{all_points_similar, draw_shape, draw_multiple_shapes, Shape};
+use crate::pattern_recognition::{draw_shape, wait_for_symbol};
 
 fn main() {
-    let mut points = VecDeque::new(); // Circular buffer: a point is added at the end and removed from the front
-    let buffer_size = 200;   // Maximum number of points to store
-    let mouse_sampling_time_ms = 10; // Time between each sampling of the mouse position
-    let guess_threshold = 0.9;  // Threshold for the guessture algorithm. If the similarity is above this threshold, the shape is detected
-
-    // Create the template shapes for guessture
     let size = 100.0;
+    let points_per_figure = 200;   // Maximum number of points to store
+
+    // Create the template shapes that can be recognized
     let templates = vec![
-        pattern_recognition::circle_template(buffer_size, size, false),
-        pattern_recognition::circle_template(buffer_size, size, true),
-        pattern_recognition::square_template(buffer_size, size, false),
-        pattern_recognition::square_template(buffer_size, size, true),
-        pattern_recognition::triangle_template(buffer_size, size, false),
-        pattern_recognition::triangle_template(buffer_size, size, true),
+        pattern_recognition::circle_template(points_per_figure, size, false),
+        pattern_recognition::circle_template(points_per_figure, size, true),
+        pattern_recognition::square_template(points_per_figure, size, false),
+        pattern_recognition::square_template(points_per_figure, size, true),
+        pattern_recognition::triangle_template(points_per_figure, size, false),
+        pattern_recognition::triangle_template(points_per_figure, size, true),
     ];
 
-    // for (i, template) in templates.iter().enumerate() {
+    // Create the template shapes for confirmation/rejection of the backup
+    let templates_confirmation = vec![
+        pattern_recognition::confirm_template(points_per_figure, size),
+        pattern_recognition::reject_template(points_per_figure, size),
+    ];
+
+    // For debug, show the template shapes as a plot
+    // for (i, template) in templates.iter().enumerate().chain(templates_confirmation.iter().enumerate()) {
     //     draw_shape(template.path.clone(), template.name.clone() + i.to_string().as_str() + ".png");
     // }
 
     loop {
-        if points.len() == buffer_size { points.pop_front(); }
+        let symbol = wait_for_symbol(points_per_figure, &templates);
+        match symbol {
+            None => { return; } // Exit the program if an error occurred
+            Some(symbol) => {
+                println!("Recognized symbol: {:?}", symbol);
+                println!("Please confirm in order to start the backup.");   // TODO: Replace with GUI
 
-        let position = Mouse::get_mouse_position();
-        match position {
-            Mouse::Position { x, y } => {
-                points.push_back(Mouse::Position { x, y });
-            }
-            Mouse::Error => {
-                println!("Error: Could not get the mouse position");
-                break;  // Exit the loop if an error occurs
+                let confirmation = wait_for_symbol(points_per_figure, &templates);
+                match confirmation {
+                    None => { return; } // Exit the program if an error occurred
+                    Some(v) => {
+                        // If same symbol, start the backup
+                        if v == symbol {
+                            println!("Backup started.\n...\n...\n...\nBackup completed.");
+                        } else {
+                            println!("Backup rejected (found: {:?}).", v);
+                            continue;
+                        }
+                    }
+
+                    /* // If we want to use tick or cross, use this instead of the previous block with Some(v)
+                    Some(Shape::Tick) => {
+                        println!("Backup started.");
+
+                        // TODO: Load the configuration from a JSON file with the same name as the detected symbol
+                        // TODO: if the configuration file does not exist, show an error message and do nothing
+                        // let config = Configuration::load("config.json");
+                        // println!("Configuration loaded: {:?}", config);
+
+                        // TODO: Backup the files following the configuration
+                        // backup(config);
+                        println!("Backup completed.");
+                    }
+                    Some(Shape::Cross) => {
+                        println!("Backup rejected.");
+                        continue;
+                    }
+                    Some(_) => { unreachable!("Impossible confirmation symbol."); }
+                    */
+                }
             }
         }
-
-        if points.len() < buffer_size { continue; }
-
-        // If the points are all similar, skip the detection (mouse not moving)
-        if all_points_similar(&points) { continue; }
-
-        let shape = pattern_recognition::detect_shape(&points, &templates, guess_threshold);
-        if shape != Shape::Unknown {
-            println!("Detected shape: {:?}", shape);
-
-            // For debug, convert the points to a Path2D and draw the shape comparison
-            // let path = pattern_recognition::points_to_path(&points, 250);
-            // let template_path = match shape {
-            //     Shape::Circle => templates[0].path.clone(),
-            //     Shape::Square => templates[1].path.clone(),
-            //     Shape::Triangle => templates[2].path.clone(),
-            //     Shape::Unknown => path.clone(),
-            // };
-            // draw_multiple_shapes(vec![path, template_path], "detected_shape.png".to_string());
-
-            points.clear(); // Clear the points buffer, so the shape is not detected again
-        }
-
-        sleep(Duration::from_millis(mouse_sampling_time_ms));
     }
 }

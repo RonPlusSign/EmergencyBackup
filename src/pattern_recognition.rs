@@ -1,5 +1,6 @@
 use std::collections::VecDeque;
-
+use std::thread::sleep;
+use std::time::Duration;
 use guessture::{find_matching_template_with_defaults, Path2D, Template};
 use mouse_position::mouse_position::Mouse;
 use plotters::drawing::IntoDrawingArea;
@@ -7,42 +8,38 @@ use plotters::style::Color;
 use plotters::style::colors::colormaps::*;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
-pub enum Shape { Unknown, Circle, Square, Triangle }
-
-pub enum Confirm { Yes, No }
+#[derive(Debug, Eq, PartialEq, Serialize, Deserialize, Copy, Clone)]
+pub enum Shape { Circle, Square, Triangle, Tick, Cross }
 
 /// Detect the shape of the given list of points
 /// #### Arguments
 /// * `points`: A list of points representing the mouse positions
 /// #### returns
 ///     Shape of the detected shape
-pub fn detect_shape(points: &VecDeque<Mouse>, templates: &Vec<Template>, threshold: f32) -> Shape {
+pub fn detect_shape(points: &VecDeque<Mouse>, templates: &Vec<Template>, threshold: f32) -> Option<Shape> {
     // Create a path from the list of points
     let mut path = Path2D::default();
     for point in points {
         match *point {
             Mouse::Position { x, y } => { path.push((x as f32).into(), (y as f32).into()); }
-            Mouse::Error => { return Shape::Unknown; }
+            Mouse::Error => { return None; }
         }
     }
 
     // Compare the path with the templates
     let result = find_matching_template_with_defaults(&templates, &path);
-    if result.is_err() {
-        return Shape::Unknown;
-    }
-    let (template, similarity) = result.unwrap();
+    if result.is_err() { return None; }
 
     // If the similarity is above the threshold, return the detected shape
+    let (template, similarity) = result.unwrap();
     return if similarity > threshold {
         match template.name.as_str() {
-            "Circle" => { Shape::Circle }
-            "Square" => { Shape::Square }
-            "Triangle" => { Shape::Triangle }
-            _ => { Shape::Unknown }
+            "Circle" => { Some(Shape::Circle) }
+            "Square" => { Some(Shape::Square) }
+            "Triangle" => { Some(Shape::Triangle) }
+            _ => { None }
         }
-    } else { Shape::Unknown };
+    } else { None };
 }
 
 /// Draw a circle with buffer_size points and a specific radius.
@@ -158,6 +155,61 @@ pub fn triangle_template(number_of_points: usize, side_length: f32, invert_direc
         triangle_points = triangle_points_new;
     }
     Template::new("Triangle".to_string(), &triangle_points).unwrap()
+}
+
+/// Shape representing a "tick"/"checkmark", used as confirmation.
+/// Drawn using a small descending line, followed by a larger ascending line.
+///
+/// #### Arguments
+/// * `number_of_points`: Number of points to draw the tick
+/// * `size`: Size of the tick
+pub fn confirm_template(number_of_points: usize, size: f32) -> Template {
+    let mut confirm_points = Path2D::default();
+    let step = size / number_of_points as f32;
+    let mut x = 0.0;
+    let mut y = 0.0;
+
+    for i in 0..number_of_points {
+        x += step;
+        if i <= number_of_points / 4 { // Descending line for 1/3 of points
+            y -= 1.5 * step;
+        } else { // Ascending line for 2/3 of points
+            y += 1.0 * step;
+        };
+
+        confirm_points.push(x.into(), y.into());
+    }
+
+    Template::new("Confirm".to_string(), &confirm_points).unwrap()
+}
+
+/// Template representing a "cross"/"x", used as rejection.
+/// Drawn using two lines crossing each other, with another line joining the ends
+/// (because it's how the mouse path is drawn)
+/// #### Arguments
+/// * `number_of_points`: Number of points to draw the cross
+/// * `size`: Size of the cross
+pub fn reject_template(number_of_points: usize, size: f32) -> Template {
+    let mut reject_points = Path2D::default();
+    let step = size / number_of_points as f32;
+    let mut x = 0.0;
+    let mut y = 0.0;
+
+    for i in 0..number_of_points {
+        if i <= number_of_points / 3 { // First line, from bottom-left to top-right
+            x += step;
+            y += step;
+        } else if i <= number_of_points * 2 / 3 { // Second line, vertical (descending)
+            y -= step;
+        } else { // Third line, from bottom-right to top-left
+            x -= step;
+            y += step;
+        }
+
+        reject_points.push(x.into(), y.into());
+    }
+
+    Template::new("Reject".to_string(), &reject_points).unwrap()
 }
 
 /// Draw a shape using plotters
@@ -320,4 +372,41 @@ pub fn points_to_path(points: &VecDeque<Mouse>, max_range_for_dimensions: i32) -
         }
     }
     path
+}
+
+pub fn wait_for_symbol(number_of_points: usize, templates: &Vec<Template>) -> Option<Shape> {
+    let mut points = VecDeque::new(); // Circular buffer: a point is added at the end and removed from the front
+    let mouse_sampling_time_ms = 10; // Time between each sampling of the mouse position
+    let guess_threshold = 0.9;  // Threshold for the guessture algorithm. If the similarity is above this threshold, the shape is detected
+
+    loop {
+        if points.len() == number_of_points { points.pop_front(); } // Buffer is full, remove the oldest point
+
+        let position = Mouse::get_mouse_position();
+        match position {
+            Mouse::Position { x, y } => { points.push_back(Mouse::Position { x, y }); }
+            Mouse::Error => { return None; }  // Exit the loop if an error occurs
+        }
+
+        if points.len() < number_of_points { continue; }    // Wait until the buffer is full
+        if all_points_similar(&points) { continue; } // If the points are all similar, skip the detection (mouse not moving)
+
+        let shape = detect_shape(&points, &templates, guess_threshold);
+        if shape.is_some() {
+            // For debug, convert the points to a Path2D and draw the shape comparison
+            // let path = points_to_path(&points, 250);
+            // let template_path = match shape.clone().unwrap() {
+            //     Shape::Circle => templates.iter().find(|template| template.name == "Circle").unwrap().path.clone(),
+            //     Shape::Square => templates.iter().find(|template| template.name == "Square").unwrap().path.clone(),
+            //     Shape::Triangle => templates.iter().find(|template| template.name == "Triangle").unwrap().path.clone(),
+            //     _ => Path2D::default(),
+            // };
+            // draw_multiple_shapes(vec![path, template_path], "detected_shape.png".to_string());
+
+            points.clear(); // Clear the points buffer, so the shape is not detected again (not necessary if I return)
+            return shape;
+        }
+
+        sleep(Duration::from_millis(mouse_sampling_time_ms));
+    }
 }
