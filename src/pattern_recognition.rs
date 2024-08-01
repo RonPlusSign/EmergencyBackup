@@ -1,8 +1,10 @@
 use std::collections::VecDeque;
+
 use guessture::{find_matching_template_with_defaults, Path2D, Template};
 use mouse_position::mouse_position::Mouse;
 use plotters::drawing::IntoDrawingArea;
-use plotters::style::{Color};
+use plotters::style::Color;
+use plotters::style::colors::colormaps::*;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -11,9 +13,9 @@ pub enum Shape { Unknown, Circle, Square, Triangle }
 pub enum Confirm { Yes, No }
 
 /// Detect the shape of the given list of points
-/// ### Arguments
+/// #### Arguments
 /// * `points`: A list of points representing the mouse positions
-/// ### returns
+/// #### returns
 ///     Shape of the detected shape
 pub fn detect_shape(points: &VecDeque<Mouse>, templates: &Vec<Template>, threshold: f32) -> Shape {
     // Create a path from the list of points
@@ -40,32 +42,42 @@ pub fn detect_shape(points: &VecDeque<Mouse>, templates: &Vec<Template>, thresho
             "Triangle" => { Shape::Triangle }
             _ => { Shape::Unknown }
         }
-    } else {
-        Shape::Unknown
-    };
+    } else { Shape::Unknown };
 }
 
-pub fn circle_template(number_of_points: usize, radius: f64) -> Template {
-    // Draw a circle with buffer_size points and a specific radius.
-    // The circle is drawn by drawing the circumference of the circle
-
+/// Draw a circle with buffer_size points and a specific radius.
+/// The circle is drawn by drawing the circumference of the circle
+///
+/// #### Arguments
+/// * `number_of_points`: Number of points to draw the circle
+/// * `radius`: Radius of the circle
+/// * `invert_direction`: If true, draw the circle in the opposite direction (counter-clockwise)
+pub fn circle_template(number_of_points: usize, radius: f32, invert_direction: bool) -> Template {
     let mut circle_points = Path2D::default();
-    for i in 0..number_of_points {
+    let range: Vec<usize> = if invert_direction { (0..number_of_points).rev().collect() } else { (0..number_of_points).collect() };
+    for i in range {
         let angle = 2.0 * std::f64::consts::PI * (i as f64) / (number_of_points as f64);
-        let x = radius * angle.cos();
-        let y = radius * angle.sin();
+        let x = radius as f64 * angle.cos();
+        let y = radius as f64 * angle.sin();
         circle_points.push((x as f32).into(), (y as f32).into());
     }
     Template::new("Circle".to_string(), &circle_points).unwrap()
 }
 
-pub fn square_template(number_of_points: usize, side_length: f32) -> Template {
-    // Draw a square with buffer_size points and a specific side length.
-    // The square is drawn by drawing the 4 sides of the square, each with buffer_size / 4 points
-    // Each side is evenly distanced in the range [-side_length/2, side_length/2]
 
+/// Draw a square with buffer_size points and a specific side length.
+///
+/// The square is drawn by drawing the 4 sides of the square, each with number_of_points/4 points.
+/// Each side is evenly distanced in the range [-side_length/2, side_length/2]
+///
+/// #### Arguments
+/// * `number_of_points`: Number of points to draw the square
+/// * `side_length`: Side length of the square
+/// * `invert_direction`: If true, draw the square in the opposite direction (anti-clockwise)
+pub fn square_template(number_of_points: usize, side_length: f32, invert_direction: bool) -> Template {
     let mut square_points = Path2D::default();
-    for i in 0..number_of_points {
+    let range: Vec<usize> = if invert_direction { (0..number_of_points).collect() } else { (0..number_of_points).rev().collect() };
+    for i in range {
         // Draw the 4 sides of the square, each with buffer_size / 4 points, evenly distanced in the range [-side_length/2, side_length/2]
         let side = i / (number_of_points / 4);
         let points_per_side = number_of_points / 4;
@@ -84,12 +96,21 @@ pub fn square_template(number_of_points: usize, side_length: f32) -> Template {
             3 => side_length / 2.0 - (i % points_per_side) as f32 / points_per_side as f32 * side_length,
             _ => 0.0
         };
+
         square_points.push(x.into(), y.into());
     }
     Template::new("Square".to_string(), &square_points).unwrap()
 }
 
-pub fn triangle_template(number_of_points: usize, side_length: f32) -> Template {
+/// Draw a triangle with buffer_size points and a specific side length.
+///
+/// The triangle equilateral and is drawn by drawing the 3 sides of the triangle, each with number_of_points/3 points.
+///
+/// #### Arguments
+/// * `number_of_points`: Number of points to draw the triangle
+/// * `side_length`: Side length of the triangle
+/// * `invert_direction`: If true, draw the triangle in the opposite direction (anti-clockwise)
+pub fn triangle_template(number_of_points: usize, side_length: f32, invert_direction: bool) -> Template {
     let mut triangle_points = Path2D::default();
 
     // Calculate the vertices of the triangle
@@ -131,9 +152,19 @@ pub fn triangle_template(number_of_points: usize, side_length: f32) -> Template 
         triangle_points.push(x.into(), y.into());
     }
 
+    if invert_direction {
+        let mut triangle_points_new = Path2D::default();
+        triangle_points.points().iter().rev().for_each(|(x, y)| triangle_points_new.push(*x, *y));
+        triangle_points = triangle_points_new;
+    }
     Template::new("Triangle".to_string(), &triangle_points).unwrap()
 }
 
+/// Draw a shape using plotters
+///
+/// #### Arguments
+/// * `shape`: Path2D representing the shape
+/// * `title`: File name to save the plot
 pub fn draw_shape(shape: Path2D, title: String) {
     // Find the bounding box of the shape
     let mut min_x = f32::MAX;
@@ -158,9 +189,17 @@ pub fn draw_shape(shape: Path2D, title: String) {
         .unwrap();
     chart.configure_mesh().draw().unwrap();
     let points = shape.points().iter().cloned().collect::<Vec<(f32, f32)>>();
-    chart.draw_series(points.iter().map(|(x, y)| plotters::prelude::Circle::new((*x as f64, *y as f64), 5, plotters::prelude::RED.filled()))).unwrap();
+    chart.draw_series(points.iter()
+        .enumerate()
+        .map(|(index, (x, y))| plotters::prelude::Circle::new((*x as f64, *y as f64), 5, VulcanoHSL.get_color(index as f64 / points.len() as f64).filled())))
+        .unwrap();
 }
 
+/// Draw multiple shapes in the same plot using plotters
+///
+/// #### Arguments
+/// * `shapes`: List of Path2D representing the shapes
+/// * `title`: File name to save the plot
 pub fn draw_multiple_shapes(shapes: Vec<Path2D>, title: String) {
     // Find the bounding box of the shape
     let mut min_x = f32::MAX;
@@ -187,15 +226,29 @@ pub fn draw_multiple_shapes(shapes: Vec<Path2D>, title: String) {
         .unwrap();
     chart.configure_mesh().draw().unwrap();
 
-    let colors = vec![plotters::prelude::RED, plotters::prelude::BLUE, plotters::prelude::GREEN, plotters::prelude::CYAN, plotters::prelude::MAGENTA, plotters::prelude::YELLOW, plotters::prelude::BLACK];
-    for (i, shape) in shapes.iter().enumerate() {
+    enum ColorPalette { VulcanoHSL(VulcanoHSL), MandelbrotHSL(MandelbrotHSL), ViridisRGB(ViridisRGB), Copper(Copper), Bone(Bone) }
+    let palettes: Vec<ColorPalette> = vec![ColorPalette::VulcanoHSL(VulcanoHSL), ColorPalette::MandelbrotHSL(MandelbrotHSL), ColorPalette::ViridisRGB(ViridisRGB), ColorPalette::Copper(Copper), ColorPalette::Bone(Bone)];
+
+    for (shape_index, shape) in shapes.iter().enumerate() {
         let points = shape.points().iter().cloned().collect::<Vec<(f32, f32)>>();
-        chart.draw_series(points.iter().map(|(x, y)| plotters::prelude::Circle::new((*x as f64, *y as f64), 5, colors[i].filled()))).unwrap();
+        chart.draw_series(points.iter()
+            .enumerate()
+            .map(|(index, (x, y))| plotters::prelude::Circle::new((*x as f64, *y as f64), 5, match &palettes[shape_index % palettes.len()] {
+                ColorPalette::VulcanoHSL(palette) => palette.get_color(index as f64 / points.len() as f64).filled(),
+                ColorPalette::MandelbrotHSL(palette) => palette.get_color(index as f64 / points.len() as f64).filled(),
+                ColorPalette::ViridisRGB(palette) => palette.get_color(index as f64 / points.len() as f64).filled(),
+                ColorPalette::Copper(palette) => palette.get_color(index as f64 / points.len() as f64).filled(),
+                ColorPalette::Bone(palette) => palette.get_color(index as f64 / points.len() as f64).filled(),
+            })))
+            .unwrap();
     }
 }
 
+/// Check if all the points are similar (within a threshold). If the points are similar, the mouse is not moving.
+///
+/// #### Arguments
+/// * `points`: A list of points representing the mouse positions
 pub fn all_points_similar(points: &VecDeque<Mouse>) -> bool {
-    // Check if all the points are similar (within a threshold). If the points are similar, the mouse is not moving.
     let threshold = 5;  // Number of pixels
     let first_point = points.front().unwrap();
     let x0 = match *first_point {

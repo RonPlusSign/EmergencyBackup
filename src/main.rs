@@ -14,14 +14,18 @@ fn main() {
     let guess_threshold = 0.9;  // Threshold for the guessture algorithm. If the similarity is above this threshold, the shape is detected
 
     // Create the template shapes for guessture
+    let size = 100.0;
     let templates = vec![
-        pattern_recognition::circle_template(buffer_size, 100.0),
-        pattern_recognition::square_template(buffer_size, 100.0),
-        pattern_recognition::triangle_template(buffer_size, 100.0),
+        pattern_recognition::circle_template(buffer_size, size, false),
+        pattern_recognition::circle_template(buffer_size, size, true),
+        pattern_recognition::square_template(buffer_size, size, false),
+        pattern_recognition::square_template(buffer_size, size, true),
+        pattern_recognition::triangle_template(buffer_size, size, false),
+        pattern_recognition::triangle_template(buffer_size, size, true),
     ];
 
-    // for template in &templates { // Draw the shapes, for debug
-    //     draw_shape(template.path.clone(), template.name.clone() + ".png");
+    // for (i, template) in templates.iter().enumerate() {
+    //     draw_shape(template.path.clone(), template.name.clone() + i.to_string().as_str() + ".png");
     // }
 
     loop {
