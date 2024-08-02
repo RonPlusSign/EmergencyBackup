@@ -1,5 +1,6 @@
 mod pattern_recognition;
 mod configuration;
+mod file;
 
 use crate::pattern_recognition::{draw_shape, wait_for_symbol};
 
