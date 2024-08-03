@@ -1,6 +1,7 @@
 use std::collections::VecDeque;
 use std::thread::sleep;
 use std::time::Duration;
+
 use guessture::{find_matching_template_with_defaults, Path2D, Template};
 use mouse_position::mouse_position::Mouse;
 use plotters::drawing::IntoDrawingArea;
@@ -10,6 +11,17 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Eq, PartialEq, Serialize, Deserialize, Copy, Clone)]
 pub enum Shape { Circle, Square, Triangle, Tick, Cross }
+impl Shape {
+    pub fn get_templates_for_shape(shape: Shape, size: f32, points_per_figure: usize) -> Vec<Template> {
+        match shape {
+            Shape::Circle => vec![circle_template(points_per_figure, size, false), circle_template(points_per_figure, size, true)],
+            Shape::Square => vec![square_template(points_per_figure, size, false), square_template(points_per_figure, size, true)],
+            Shape::Triangle => vec![triangle_template(points_per_figure, size, false), triangle_template(points_per_figure, size, true)],
+            Shape::Cross => vec![reject_template(points_per_figure, size, false), reject_template(points_per_figure, size, true)],
+            Shape::Tick => vec![confirm_template(points_per_figure, size)],
+        }
+    }
+}
 
 /// Detect the shape of the given list of points
 /// #### Arguments
@@ -21,7 +33,7 @@ pub fn detect_shape(points: &VecDeque<Mouse>, templates: &Vec<Template>, thresho
     let mut path = Path2D::default();
     for point in points {
         match *point {
-            Mouse::Position { x, y } => { path.push((x as f32).into(), (y as f32).into()); }
+            Mouse::Position { x, y } => { path.push(x as f32, y as f32); }
             Mouse::Error => { return None; }
         }
     }
@@ -37,6 +49,8 @@ pub fn detect_shape(points: &VecDeque<Mouse>, templates: &Vec<Template>, thresho
             "Circle" => { Some(Shape::Circle) }
             "Square" => { Some(Shape::Square) }
             "Triangle" => { Some(Shape::Triangle) }
+            "Confirm" => { Some(Shape::Tick) }
+            "Reject" => { Some(Shape::Cross) }
             _ => { None }
         }
     } else { None };
@@ -56,7 +70,7 @@ pub fn circle_template(number_of_points: usize, radius: f32, invert_direction: b
         let angle = 2.0 * std::f64::consts::PI * (i as f64) / (number_of_points as f64);
         let x = radius as f64 * angle.cos();
         let y = radius as f64 * angle.sin();
-        circle_points.push((x as f32).into(), (y as f32).into());
+        circle_points.push(x as f32, y as f32);
     }
     Template::new("Circle".to_string(), &circle_points).unwrap()
 }
@@ -94,7 +108,7 @@ pub fn square_template(number_of_points: usize, side_length: f32, invert_directi
             _ => 0.0
         };
 
-        square_points.push(x.into(), y.into());
+        square_points.push(x, y);
     }
     Template::new("Square".to_string(), &square_points).unwrap()
 }
@@ -128,7 +142,7 @@ pub fn triangle_template(number_of_points: usize, side_length: f32, invert_direc
         let (x2, y2) = vertices[1];
         let x = x1 + t * (x2 - x1);
         let y = y1 + t * (y2 - y1);
-        triangle_points.push(x.into(), y.into());
+        triangle_points.push(x, y);
     }
 
     for i in 0..points_per_side {
@@ -137,7 +151,7 @@ pub fn triangle_template(number_of_points: usize, side_length: f32, invert_direc
         let (x2, y2) = vertices[2];
         let x = x1 + t * (x2 - x1);
         let y = y1 + t * (y2 - y1);
-        triangle_points.push(x.into(), y.into());
+        triangle_points.push(x, y);
     }
 
     for i in 0..points_per_side {
@@ -146,7 +160,7 @@ pub fn triangle_template(number_of_points: usize, side_length: f32, invert_direc
         let (x2, y2) = vertices[0];
         let x = x1 + t * (x2 - x1);
         let y = y1 + t * (y2 - y1);
-        triangle_points.push(x.into(), y.into());
+        triangle_points.push(x, y);
     }
 
     if invert_direction {
@@ -171,13 +185,13 @@ pub fn confirm_template(number_of_points: usize, size: f32) -> Template {
 
     for i in 0..number_of_points {
         x += step;
-        if i <= number_of_points / 4 { // Descending line for 1/3 of points
+        if i <= number_of_points / 3 { // Descending line for 1/3 of points
             y -= 1.5 * step;
         } else { // Ascending line for 2/3 of points
             y += 1.0 * step;
         };
 
-        confirm_points.push(x.into(), y.into());
+        confirm_points.push(x, y);
     }
 
     Template::new("Confirm".to_string(), &confirm_points).unwrap()
@@ -189,7 +203,8 @@ pub fn confirm_template(number_of_points: usize, size: f32) -> Template {
 /// #### Arguments
 /// * `number_of_points`: Number of points to draw the cross
 /// * `size`: Size of the cross
-pub fn reject_template(number_of_points: usize, size: f32) -> Template {
+/// * `invert_direction`: If true, draw the cross in the opposite direction
+pub fn reject_template(number_of_points: usize, size: f32, invert_direction: bool) -> Template {
     let mut reject_points = Path2D::default();
     let step = size / number_of_points as f32;
     let mut x = 0.0;
@@ -206,9 +221,14 @@ pub fn reject_template(number_of_points: usize, size: f32) -> Template {
             y += step;
         }
 
-        reject_points.push(x.into(), y.into());
+        reject_points.push(x, y);
     }
 
+    if invert_direction {
+        let mut reject_points_new = Path2D::default();
+        reject_points.points().iter().rev().for_each(|(x, y)| reject_points_new.push(*x, *y));
+        reject_points = reject_points_new;
+    }
     Template::new("Reject".to_string(), &reject_points).unwrap()
 }
 
@@ -324,7 +344,6 @@ pub fn all_points_similar(points: &VecDeque<Mouse>) -> bool {
     return true;
 }
 
-
 /// Convert a list of points to a scaled&centered Path2D
 /// ### Arguments
 /// * `points`: A list of points representing the mouse positions
@@ -366,7 +385,7 @@ pub fn points_to_path(points: &VecDeque<Mouse>, max_range_for_dimensions: i32) -
             Mouse::Position { x, y } => {
                 let x = (x as f32 - mean_x) * scale;
                 let y = (y as f32 - mean_y) * scale;
-                path.push(x.into(), y.into());
+                path.push(x, y);
             }
             Mouse::Error => { return path; }
         }
@@ -399,6 +418,8 @@ pub fn wait_for_symbol(number_of_points: usize, templates: &Vec<Template>) -> Op
             //     Shape::Circle => templates.iter().find(|template| template.name == "Circle").unwrap().path.clone(),
             //     Shape::Square => templates.iter().find(|template| template.name == "Square").unwrap().path.clone(),
             //     Shape::Triangle => templates.iter().find(|template| template.name == "Triangle").unwrap().path.clone(),
+            //     Shape::Cross => templates.iter().find(|template| template.name == "Reject").unwrap().path.clone(),
+            //     Shape::Tick => templates.iter().find(|template| template.name == "Confirm").unwrap().path.clone(),
             //     _ => Path2D::default(),
             // };
             // draw_multiple_shapes(vec![path, template_path], "detected_shape.png".to_string());

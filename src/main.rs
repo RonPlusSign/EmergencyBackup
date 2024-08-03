@@ -2,7 +2,7 @@ mod pattern_recognition;
 mod configuration;
 mod file;
 
-use crate::pattern_recognition::{draw_shape, wait_for_symbol};
+use crate::pattern_recognition::{draw_shape, Shape, wait_for_symbol};
 
 fn main() {
     let size = 100.0;
@@ -18,14 +18,8 @@ fn main() {
         pattern_recognition::triangle_template(points_per_figure, size, true),
     ];
 
-    // Create the template shapes for confirmation/rejection of the backup
-    let templates_confirmation = vec![
-        pattern_recognition::confirm_template(points_per_figure, size),
-        pattern_recognition::reject_template(points_per_figure, size),
-    ];
-
     // For debug, show the template shapes as a plot
-    // for (i, template) in templates.iter().enumerate().chain(templates_confirmation.iter().enumerate()) {
+    // for (i, template) in templates.iter().enumerate() {
     //     draw_shape(template.path.clone(), template.name.clone() + i.to_string().as_str() + ".png");
     // }
 
@@ -37,38 +31,28 @@ fn main() {
                 println!("Recognized symbol: {:?}", symbol);
                 println!("Please confirm in order to start the backup.");   // TODO: Replace with GUI
 
-                let confirmation = wait_for_symbol(points_per_figure, &templates);
+                let confirm_templates = vec![Shape::get_templates_for_shape(symbol, size, points_per_figure),   // Confirm by redrawing the same symbol
+                                             Shape::get_templates_for_shape(Shape::Cross, size, points_per_figure)] // Reject by drawing an X
+                    .into_iter().flat_map(|x| x.into_iter()).collect();
+                let confirmation = wait_for_symbol(points_per_figure, &confirm_templates);
                 match confirmation {
                     None => { return; } // Exit the program if an error occurred
                     Some(v) => {
-                        // If same symbol, start the backup
-                        if v == symbol {
-                            println!("Backup started.\n...\n...\n...\nBackup completed.");
+                        if v == symbol { // If same symbol, start the backup
+                            println!("Backup started.\n...\n...\n...");
+                            // TODO: Load the configuration from a JSON file with the same name as the detected symbol
+                            // TODO: if the configuration file does not exist, show an error message and do nothing
+                            // let config = Configuration::load("config.json");
+                            // println!("Configuration loaded: {:?}", config);
+
+                            // TODO: Backup the files following the configuration
+                            // backup(config);
+                            println!("Backup completed.");
                         } else {
                             println!("Backup rejected (found: {:?}).", v);
                             continue;
                         }
                     }
-
-                    /* // If we want to use tick or cross, use this instead of the previous block with Some(v)
-                    Some(Shape::Tick) => {
-                        println!("Backup started.");
-
-                        // TODO: Load the configuration from a JSON file with the same name as the detected symbol
-                        // TODO: if the configuration file does not exist, show an error message and do nothing
-                        // let config = Configuration::load("config.json");
-                        // println!("Configuration loaded: {:?}", config);
-
-                        // TODO: Backup the files following the configuration
-                        // backup(config);
-                        println!("Backup completed.");
-                    }
-                    Some(Shape::Cross) => {
-                        println!("Backup rejected.");
-                        continue;
-                    }
-                    Some(_) => { unreachable!("Impossible confirmation symbol."); }
-                    */
                 }
             }
         }
