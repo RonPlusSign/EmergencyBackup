@@ -1,6 +1,7 @@
 mod pattern_recognition;
 mod configuration;
 mod file;
+mod confirmation_egui;
 
 use crate::pattern_recognition::{draw_shape, Shape, wait_for_symbol};
 
