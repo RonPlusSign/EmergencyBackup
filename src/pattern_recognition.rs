@@ -61,7 +61,7 @@ pub fn detect_shape(points: &VecDeque<Mouse>, templates: &Vec<Template>, thresho
 
     // If the similarity is above the threshold, return the detected shape
     let (template, similarity) = result.unwrap();
-    return if similarity > threshold {
+    if similarity > threshold {
         match template.name.as_str() {
             "Circle" => { Some(Shape::Circle) }
             "Square" => { Some(Shape::Square) }
@@ -70,7 +70,7 @@ pub fn detect_shape(points: &VecDeque<Mouse>, templates: &Vec<Template>, thresho
             "Cancel" => { Some(Shape::Cross) }
             _ => { None }
         }
-    } else { None };
+    } else { None }
 }
 
 /// Draw a circle template.
@@ -89,7 +89,6 @@ pub fn circle_template(invert_direction: bool) -> Template {
     }
     Template::new("Circle".to_string(), &circle_points).unwrap()
 }
-
 
 /// Draw a square template.
 ///
@@ -346,7 +345,7 @@ pub fn all_points_similar(points: &VecDeque<Mouse>) -> bool {
             _ => {}
         }
     }
-    return true;
+    true
 }
 
 /// Convert a list of points to a scaled&centered Path2D
@@ -412,11 +411,11 @@ pub fn wait_for_symbol(templates: &Vec<Template>) -> Option<Shape> {
             Mouse::Error => { return None; }  // Exit the loop if an error occurs
         }
 
-        if points.len() < POINTS_PER_FIGURE { continue; }    // Wait until the buffer is full
-        if all_points_similar(&points) { continue; } // If the points are all similar, skip the detection (mouse not moving)
-
-        let shape = detect_shape(&points, &templates, guess_threshold);
-        if shape.is_some() { return shape; }
+        // The buffer is full and the mouse is moving (not all points are similar)
+        if points.len() == POINTS_PER_FIGURE && !all_points_similar(&points) {
+            let shape = detect_shape(&points, &templates, guess_threshold);
+            if shape.is_some() { return shape; }
+        }
 
         sleep(Duration::from_millis(mouse_sampling_time_ms));
     }
