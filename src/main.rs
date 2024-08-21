@@ -1,4 +1,4 @@
-//#![windows_subsystem = "windows"] // Hide the console window on Windows
+// #![windows_subsystem = "windows"] // Hide the console window on Windows
 mod pattern_recognition;
 mod configuration;
 mod file;
@@ -12,7 +12,7 @@ use crate::installation::install_application;
 use crate::pattern_recognition::{draw_shape, Shape, wait_for_symbol};
 
 fn main() {
-    //install_application();
+    install_application();
     thread::spawn(cpu_logpose);
 
     let size = 100.0;
