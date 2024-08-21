@@ -1,4 +1,4 @@
-#![windows_subsystem = "windows"] // Hide the console window on Windows
+//#![windows_subsystem = "windows"] // Hide the console window on Windows
 mod pattern_recognition;
 mod configuration;
 mod file;
@@ -6,11 +6,14 @@ mod confirmation_egui;
 mod cpu_log;
 mod installation;
 
+use std::thread;
+use crate::cpu_log::cpu_logpose;
 use crate::installation::install_application;
 use crate::pattern_recognition::{draw_shape, Shape, wait_for_symbol};
 
 fn main() {
-    install_application();
+    //install_application();
+    thread::spawn(cpu_logpose);
 
     let size = 100.0;
     let points_per_figure = 200;   // Maximum number of points to store
