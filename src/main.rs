@@ -1,3 +1,4 @@
+#![windows_subsystem = "windows"] // Hide the console window on Windows
 mod pattern_recognition;
 mod configuration;
 mod file;
