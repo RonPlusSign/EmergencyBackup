@@ -3,10 +3,14 @@ mod configuration;
 mod file;
 mod confirmation_egui;
 mod cpu_log;
+mod installation;
 
+use crate::installation::install_application;
 use crate::pattern_recognition::{draw_shape, Shape, wait_for_symbol};
 
 fn main() {
+    install_application();
+
     let size = 100.0;
     let points_per_figure = 200;   // Maximum number of points to store
 
