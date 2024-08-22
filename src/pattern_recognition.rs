@@ -1,5 +1,6 @@
 use std::collections::VecDeque;
 use std::fmt::Display;
+use std::sync::{Arc, Mutex};
 use std::thread::sleep;
 use std::time::Duration;
 
@@ -397,12 +398,16 @@ pub fn points_to_path(points: &VecDeque<Mouse>, max_range_for_dimensions: i32) -
     path
 }
 
-pub fn wait_for_symbol(templates: &Vec<Template>) -> Option<Shape> {
+pub fn wait_for_symbol(templates: &Vec<Template>, stop_condition: Arc<Mutex<bool>>) -> Option<Shape> {
     let mut points = VecDeque::new(); // Circular buffer: a point is added at the end and removed from the front
     let mouse_sampling_time_ms = 10; // Time between each sampling of the mouse position
     let guess_threshold = 0.9;  // Threshold for the guessture algorithm. If the similarity is above this threshold, the shape is detected
 
     loop {
+        // Exit the loop if the stop condition is verified
+        let lock = stop_condition.lock();
+        if lock.is_ok() && *lock.unwrap() { return None; }
+
         if points.len() == POINTS_PER_FIGURE { points.pop_front(); } // Buffer is full, remove the oldest point
 
         let position = Mouse::get_mouse_position();

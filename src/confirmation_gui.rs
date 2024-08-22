@@ -4,6 +4,7 @@ use eframe::App;
 use eframe::emath::Align;
 use eframe::glow::Context;
 use egui;
+use egui::Vec2;
 use guessture::Template;
 use crate::pattern_recognition::{Shape, wait_for_symbol};
 
@@ -28,26 +29,34 @@ impl App for ConfirmationGui {
         egui::CentralPanel::default().show(ctx, |ui| {
             // Align everything to the center
             ui.vertical_centered(|ui| {
+                ui.allocate_space(Vec2::new(0.0, 20.0)); // Add some space between the title and the symbols
                 ui.heading("Redraw the symbol to confirm or cancel.");
 
                 // Horizontal layout for the symbols
                 ui.horizontal_centered(|ui| {
                     ui.columns(2, |columns| {
-                        let max_height = 150.0;
+                        let max_height = 180.0;
 
                         columns[0].with_layout(egui::Layout::top_down(Align::Center), |ui| {
+                            ui.allocate_space(Vec2::new(0.0, 20.0)); // Add some space between the title and the symbols
                             ui.heading(format!("Confirm: {}", self.confirm_shape));
-                            match self.confirm_shape {
-                                Shape::Circle => ui.add(egui::Image::new(egui::include_image!("../images/circle.gif")).max_height(max_height)),
-                                Shape::Square => ui.add(egui::Image::new(egui::include_image!("../images/square.gif")).max_height(max_height)),
-                                Shape::Triangle => ui.add(egui::Image::new(egui::include_image!("../images/triangle.gif")).max_height(max_height)),
-                                _ => { ui.label("Invalid shape.") }
-                            }
+
+                            ui.centered_and_justified(|ui| {
+                                match self.confirm_shape {
+                                    Shape::Circle => ui.add(egui::Image::new(egui::include_image!("../images/circle.gif")).max_height(max_height)),
+                                    Shape::Square => ui.add(egui::Image::new(egui::include_image!("../images/square.gif")).max_height(max_height)),
+                                    Shape::Triangle => ui.add(egui::Image::new(egui::include_image!("../images/triangle.gif")).max_height(max_height)),
+                                    _ => { ui.label("Invalid shape.") }
+                                }
+                            });
                         });
 
                         columns[1].with_layout(egui::Layout::top_down(Align::Center), |ui| {
+                            ui.allocate_space(Vec2::new(0.0, 20.0)); // Add some space between the title and the symbols
                             ui.heading(format!("Cancel: {}", self.cancel_shape));
-                            ui.add(egui::Image::new(egui::include_image!("../images/cancel.gif")).max_height(max_height));
+                            ui.centered_and_justified(|ui| {
+                                ui.add(egui::Image::new(egui::include_image!("../images/cancel.gif")).max_height(max_height));
+                            });
                         });
                     });
                 });
@@ -55,15 +64,12 @@ impl App for ConfirmationGui {
         });
 
         // Close the window if the status is set
-        if let Some(_) = *status {
-            println!("Closing the window.");
-            ctx.send_viewport_cmd(egui::ViewportCommand::Close);
-        }
+        if let Some(_) = *status { ctx.send_viewport_cmd(egui::ViewportCommand::Close); }
     }
 
     fn on_exit(&mut self, _gl: Option<&Context>) {
         let mut status = self.status.lock().unwrap();
-        *status = Some(false);    // Cancel the backup if the window is closed
+        if status.is_none() { *status = Some(false); } // Cancel the backup if the window is closed
     }
 }
 
@@ -72,12 +78,14 @@ impl ConfirmationGui {
         let gui = ConfirmationGui { confirm_shape, cancel_shape, status: Arc::new(Mutex::new(None)) };
         let gui_status = gui.status.clone();
         let gui_status_thread = gui.status.clone();
+        let stop = Arc::new(Mutex::new(false));
+        let stop_thread = stop.clone();
 
         let handle = std::thread::spawn(move || {
             let confirm_templates: Vec<Template> = vec![Shape::get_templates_for_shape(confirm_shape),   // Confirm by redrawing the same symbol
                                                         Shape::get_templates_for_shape(cancel_shape)] // Cancel by drawing an X
                 .into_iter().flat_map(|x| x.into_iter()).collect();
-            let confirmation = wait_for_symbol(&confirm_templates);
+            let confirmation = wait_for_symbol(&confirm_templates, stop_thread);
 
             let mut status = gui_status_thread.lock().unwrap();
             match confirmation {
@@ -86,11 +94,12 @@ impl ConfirmationGui {
             };
         });
 
+        let (width, height) = (700.0, 500.0);
         let native_options = eframe::NativeOptions {
             viewport: egui::ViewportBuilder::default()
-                .with_min_inner_size([600.0, 400.0])
-                .with_max_inner_size([600.0, 400.0])
-                .with_position([1920.0 / 2.0 - 300.0, 1080.0 / 2.0 - 200.0])    // Center the window
+                .with_min_inner_size([width, height])
+                .with_max_inner_size([width, height])
+                .with_position([(1920.0 - width) / 2.0, (1080.0 - height) / 2.0])
                 .with_resizable(false)
                 .with_icon(eframe::icon_data::from_png_bytes(&include_bytes!("../images/emergency-backup-icon.png")[..])
                     .expect("Failed to load icon")),
@@ -100,7 +109,12 @@ impl ConfirmationGui {
         // Run the GUI
         eframe::run_native("Confirm backup", native_options, Box::new(|_cc| Ok(Box::new(gui)))).expect("Failed to run the GUI");
 
+        // If the window is closed manually, stop the recognition thread (if it's still running)
+        let mut stop = stop.lock().unwrap();
+        *stop = true;
+        drop(stop); // Drop the mutex to unlock it for the other thread
         handle.join().unwrap();
+
         let status = gui_status.lock().unwrap();
         status.unwrap()
     }

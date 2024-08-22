@@ -1,3 +1,4 @@
+use std::sync::{Arc, Mutex};
 use confirmation_gui::ConfirmationGui;
 
 use crate::pattern_recognition::{Shape, wait_for_symbol};
@@ -20,7 +21,7 @@ fn main() {
     ];
 
     loop {
-        let symbol = wait_for_symbol(&templates);
+        let symbol = wait_for_symbol(&templates, Arc::new(Mutex::new(false)));
         match symbol {
             None => { return; } // Exit the program if an error occurred
             Some(symbol) => {
