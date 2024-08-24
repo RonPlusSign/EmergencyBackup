@@ -1,20 +1,18 @@
+use confirmation_gui::ConfirmationGui;
 // #![windows_subsystem = "windows"] // Hide the console window on Windows
 use std::sync::{Arc, Mutex};
-use confirmation_gui::ConfirmationGui;
-
-use crate::pattern_recognition::{Shape, wait_for_symbol};
 
 mod file;
+mod cpu_log;
+mod installation;
 mod configuration;
 mod confirmation_gui;
 mod pattern_recognition;
-mod cpu_log;
-mod installation;
 
 use std::thread;
 use crate::cpu_log::cpu_logpose;
 use crate::installation::install_application;
-use crate::pattern_recognition::{draw_shape, Shape, wait_for_symbol};
+use crate::pattern_recognition::{wait_for_symbol, Shape};
 
 fn main() {
     install_application();
