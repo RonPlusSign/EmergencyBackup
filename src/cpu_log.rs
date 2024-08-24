@@ -1,11 +1,10 @@
-use std::fs;
-use std::fs::{File, OpenOptions};
+use std::fs::OpenOptions;
 use std::io::Write;
 use std::thread::sleep;
 use std::time::Duration;
-use sysinfo::{Pid, ProcessesToUpdate, ProcessRefreshKind, System};
+use sysinfo::{Pid, ProcessRefreshKind, ProcessesToUpdate, System};
 
-pub fn cpu_logpose() -> Result<(), std::io::Error>{
+pub fn cpu_logpose() -> Result<(), std::io::Error> {
     let mut s = System::new_all();
     let cpus: f32 = num_cpus::get() as f32;
     let mut cpu_single_use: f32 = 0.0;
@@ -25,19 +24,17 @@ pub fn cpu_logpose() -> Result<(), std::io::Error>{
             count += 1.0;
         }
 
-        if count == 2.0 {
+        if count == 24.0 {  // 5 seconds * 24 = 2 minutes
             cpu_use = cpu_single_use / count;
             num_cycles += 1;
-            cpu_logfile(num_cycles, cpu_use)?;
+            cpu_logfile(cpu_use)?;
             count = 0.0;
             cpu_single_use = 0.0;
-
         }
     }
-
 }
 
-fn cpu_logfile(n:i32, c:f32) -> std::io::Result<()> {
+fn cpu_logfile(cpu_usage: f32) -> std::io::Result<()> {
     // Specify the file path
     let file_path = "cpu_logfile.txt";
 
@@ -54,7 +51,7 @@ fn cpu_logfile(n:i32, c:f32) -> std::io::Result<()> {
     let timestamp = now.format("%Y-%m-%d %H:%M:%S").to_string();
 
     // Write the formatted string to the file
-    writeln!(file, "[{}]: percentage: {}", timestamp, c)?;
+    writeln!(file, "[{}] CPU: {}%", timestamp, cpu_usage)?;
 
     Ok(())
 }

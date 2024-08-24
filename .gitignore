@@ -2,6 +2,8 @@
 *.png
 *.json
 config
+*.log
+*.txt
 
 ### Intellij ###
 .idea
