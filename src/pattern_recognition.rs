@@ -321,12 +321,12 @@ pub fn draw_multiple_shapes(shapes: Vec<Path2D>, title: String) {
     }
 }
 
-/// Check if all the points are similar (within a threshold). If the points are similar, the mouse is not moving.
+/// Check if all the points are similar (within a threshold). If the points are similar, the mouse is not moving enough.
 ///
 /// #### Arguments
 /// * `points`: A list of points representing the mouse positions
-pub fn all_points_similar(points: &VecDeque<Mouse>) -> bool {
-    let threshold = 5;  // Number of pixels
+pub fn all_points_near(points: &VecDeque<Mouse>) -> bool {
+    let threshold = 600;  // Minimum distance for the mouse to move in pixels
     let first_point = points.front().unwrap();
     let x0 = match *first_point {
         Mouse::Position { x, y: _y } => x,
@@ -417,7 +417,7 @@ pub fn wait_for_symbol(templates: &Vec<Template>, stop_condition: Arc<Mutex<bool
         }
 
         // The buffer is full and the mouse is moving (not all points are similar)
-        if points.len() == POINTS_PER_FIGURE && !all_points_similar(&points) {
+        if points.len() == POINTS_PER_FIGURE && !all_points_near(&points) {
             let shape = detect_shape(&points, &templates, guess_threshold);
             if shape.is_some() { return shape; }
         }
