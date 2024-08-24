@@ -35,7 +35,7 @@ impl App for ConfirmationGui {
                 // Horizontal layout for the symbols
                 ui.horizontal_centered(|ui| {
                     ui.columns(2, |columns| {
-                        let max_height = 180.0;
+                        let max_height = 200.0;
 
                         columns[0].with_layout(egui::Layout::top_down(Align::Center), |ui| {
                             ui.allocate_space(Vec2::new(0.0, 20.0)); // Add some space between the title and the symbols
