@@ -96,13 +96,13 @@ impl ConfirmationGui {
 
         let (width, height) = (700.0, 500.0);
         let native_options = eframe::NativeOptions {
+            follow_system_theme: true,  // Note: currently not switching themes on Linux (see NativeOptions docs)
+            centered: true, // Note: currently not supported by Wayland (see NativeOptions docs)
             viewport: egui::ViewportBuilder::default()
                 .with_min_inner_size([width, height])
                 .with_max_inner_size([width, height])
-                .with_position([(1920.0 - width) / 2.0, (1080.0 - height) / 2.0])
                 .with_resizable(false)
-                .with_icon(eframe::icon_data::from_png_bytes(&include_bytes!("../images/emergency-backup-icon.png")[..])
-                    .expect("Failed to load icon")),
+                .with_icon(eframe::icon_data::from_png_bytes(&include_bytes!("../images/emergency-backup-icon.png")[..]).expect("Failed to load icon")),
             ..Default::default()
         };
 
