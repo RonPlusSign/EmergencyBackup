@@ -1,4 +1,6 @@
 use std::collections::VecDeque;
+use std::fmt::Display;
+use std::sync::{Arc, Mutex};
 use std::thread::sleep;
 use std::time::Duration;
 
@@ -9,17 +11,33 @@ use plotters::style::Color;
 use plotters::style::colors::colormaps::*;
 use serde::{Deserialize, Serialize};
 
+const POINTS_PER_FIGURE: usize = 200;   // Maximum number of points to store
+const SHAPE_SIZE: f32 = 100.0; // Size of the shapes (each side/radius)
+
 #[derive(Debug, Eq, PartialEq, Serialize, Deserialize, Copy, Clone)]
 pub enum Shape { Circle, Square, Triangle, Tick, Cross }
 impl Shape {
-    pub fn get_templates_for_shape(shape: Shape, size: f32, points_per_figure: usize) -> Vec<Template> {
+    pub fn get_templates_for_shape(shape: Shape) -> Vec<Template> {
         match shape {
-            Shape::Circle => vec![circle_template(points_per_figure, size, false), circle_template(points_per_figure, size, true)],
-            Shape::Square => vec![square_template(points_per_figure, size, false), square_template(points_per_figure, size, true)],
-            Shape::Triangle => vec![triangle_template(points_per_figure, size, false), triangle_template(points_per_figure, size, true)],
-            Shape::Cross => vec![reject_template(points_per_figure, size, false), reject_template(points_per_figure, size, true)],
-            Shape::Tick => vec![confirm_template(points_per_figure, size)],
+            Shape::Circle => vec![circle_template(false), circle_template(true)],
+            Shape::Square => vec![square_template(false), square_template(true)],
+            Shape::Triangle => vec![triangle_template(false), triangle_template(true)],
+            Shape::Cross => vec![cancel_template(false), cancel_template(true)],
+            Shape::Tick => vec![confirm_template()],
         }
+    }
+}
+
+impl Display for Shape {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let str = match self {
+            Shape::Circle => "Circle".to_string(),
+            Shape::Square => "Square".to_string(),
+            Shape::Triangle => "Triangle".to_string(),
+            Shape::Tick => "Tick".to_string(),
+            Shape::Cross => "Cross".to_string(),
+        };
+        write!(f, "{}", str)
     }
 }
 
@@ -44,67 +62,62 @@ pub fn detect_shape(points: &VecDeque<Mouse>, templates: &Vec<Template>, thresho
 
     // If the similarity is above the threshold, return the detected shape
     let (template, similarity) = result.unwrap();
-    return if similarity > threshold {
+    if similarity > threshold {
         match template.name.as_str() {
             "Circle" => { Some(Shape::Circle) }
             "Square" => { Some(Shape::Square) }
             "Triangle" => { Some(Shape::Triangle) }
             "Confirm" => { Some(Shape::Tick) }
-            "Reject" => { Some(Shape::Cross) }
+            "Cancel" => { Some(Shape::Cross) }
             _ => { None }
         }
-    } else { None };
+    } else { None }
 }
 
-/// Draw a circle with buffer_size points and a specific radius.
+/// Draw a circle template.
 /// The circle is drawn by drawing the circumference of the circle
 ///
 /// #### Arguments
-/// * `number_of_points`: Number of points to draw the circle
-/// * `radius`: Radius of the circle
 /// * `invert_direction`: If true, draw the circle in the opposite direction (counter-clockwise)
-pub fn circle_template(number_of_points: usize, radius: f32, invert_direction: bool) -> Template {
+pub fn circle_template(invert_direction: bool) -> Template {
     let mut circle_points = Path2D::default();
-    let range: Vec<usize> = if invert_direction { (0..number_of_points).rev().collect() } else { (0..number_of_points).collect() };
+    let range: Vec<usize> = if invert_direction { (0..POINTS_PER_FIGURE).rev().collect() } else { (0..POINTS_PER_FIGURE).collect() };
     for i in range {
-        let angle = 2.0 * std::f64::consts::PI * (i as f64) / (number_of_points as f64);
-        let x = radius as f64 * angle.cos();
-        let y = radius as f64 * angle.sin();
+        let angle = 2.0 * std::f64::consts::PI * (i as f64) / (POINTS_PER_FIGURE as f64);
+        let x = SHAPE_SIZE as f64 * angle.cos();
+        let y = SHAPE_SIZE as f64 * angle.sin();
         circle_points.push(x as f32, y as f32);
     }
     Template::new("Circle".to_string(), &circle_points).unwrap()
 }
 
-
-/// Draw a square with buffer_size points and a specific side length.
+/// Draw a square template.
 ///
-/// The square is drawn by drawing the 4 sides of the square, each with number_of_points/4 points.
-/// Each side is evenly distanced in the range [-side_length/2, side_length/2]
+/// The square is drawn by drawing the 4 sides of the square, each with POINTS_PER_FIGURE/4 points.
+/// Each side is evenly distanced in the range [-SHAPE_SIZE/2, SHAPE_SIZE/2]
 ///
 /// #### Arguments
-/// * `number_of_points`: Number of points to draw the square
-/// * `side_length`: Side length of the square
 /// * `invert_direction`: If true, draw the square in the opposite direction (anti-clockwise)
-pub fn square_template(number_of_points: usize, side_length: f32, invert_direction: bool) -> Template {
+pub fn square_template(invert_direction: bool) -> Template {
     let mut square_points = Path2D::default();
-    let range: Vec<usize> = if invert_direction { (0..number_of_points).collect() } else { (0..number_of_points).rev().collect() };
+    let range: Vec<usize> = if invert_direction { (0..POINTS_PER_FIGURE).collect() } else { (0..POINTS_PER_FIGURE).rev().collect() };
     for i in range {
-        // Draw the 4 sides of the square, each with buffer_size / 4 points, evenly distanced in the range [-side_length/2, side_length/2]
-        let side = i / (number_of_points / 4);
-        let points_per_side = number_of_points / 4;
+        // Draw the 4 sides of the square, each with POINTS_PER_FIGURE / 4 points, evenly distanced in the range [-SHAPE_SIZE/2, SHAPE_SIZE/2]
+        let side = i / (POINTS_PER_FIGURE / 4);
+        let points_per_side = POINTS_PER_FIGURE / 4;
         let x = match side {
-            0 => -side_length / 2.0 + (i % points_per_side) as f32 / points_per_side as f32 * side_length,
-            1 => side_length / 2.0,
-            2 => side_length / 2.0 - (i % points_per_side) as f32 / points_per_side as f32 * side_length,
-            3 => -side_length / 2.0,
+            0 => -SHAPE_SIZE / 2.0 + (i % points_per_side) as f32 / points_per_side as f32 * SHAPE_SIZE,
+            1 => SHAPE_SIZE / 2.0,
+            2 => SHAPE_SIZE / 2.0 - (i % points_per_side) as f32 / points_per_side as f32 * SHAPE_SIZE,
+            3 => -SHAPE_SIZE / 2.0,
             _ => 0.0
         };
 
         let y = match side {
-            0 => -side_length / 2.0,
-            1 => -side_length / 2.0 + (i % points_per_side) as f32 / points_per_side as f32 * side_length,
-            2 => side_length / 2.0,
-            3 => side_length / 2.0 - (i % points_per_side) as f32 / points_per_side as f32 * side_length,
+            0 => -SHAPE_SIZE / 2.0,
+            1 => -SHAPE_SIZE / 2.0 + (i % points_per_side) as f32 / points_per_side as f32 * SHAPE_SIZE,
+            2 => SHAPE_SIZE / 2.0,
+            3 => SHAPE_SIZE / 2.0 - (i % points_per_side) as f32 / points_per_side as f32 * SHAPE_SIZE,
             _ => 0.0
         };
 
@@ -113,27 +126,25 @@ pub fn square_template(number_of_points: usize, side_length: f32, invert_directi
     Template::new("Square".to_string(), &square_points).unwrap()
 }
 
-/// Draw a triangle with buffer_size points and a specific side length.
+/// Draw a triangle template.
 ///
-/// The triangle equilateral and is drawn by drawing the 3 sides of the triangle, each with number_of_points/3 points.
+/// The triangle equilateral and is drawn by drawing the 3 sides of the triangle, each with POINTS_PER_FIGURE/3 points.
 ///
 /// #### Arguments
-/// * `number_of_points`: Number of points to draw the triangle
-/// * `side_length`: Side length of the triangle
 /// * `invert_direction`: If true, draw the triangle in the opposite direction (anti-clockwise)
-pub fn triangle_template(number_of_points: usize, side_length: f32, invert_direction: bool) -> Template {
+pub fn triangle_template(invert_direction: bool) -> Template {
     let mut triangle_points = Path2D::default();
 
     // Calculate the vertices of the triangle
-    let height = (side_length * (3.0_f32).sqrt()) / 2.0;
+    let height = (SHAPE_SIZE * (3.0_f32).sqrt()) / 2.0;
     let vertices = [
         (0.0, height / 2.0),
-        (-side_length / 2.0, -height / 2.0),
-        (side_length / 2.0, -height / 2.0),
+        (-SHAPE_SIZE / 2.0, -height / 2.0),
+        (SHAPE_SIZE / 2.0, -height / 2.0),
     ];
 
     // Number of points per side
-    let points_per_side = number_of_points / 3;
+    let points_per_side = POINTS_PER_FIGURE / 3;
 
     // Interpolate points between vertices
     for i in 0..points_per_side {
@@ -173,19 +184,15 @@ pub fn triangle_template(number_of_points: usize, side_length: f32, invert_direc
 
 /// Shape representing a "tick"/"checkmark", used as confirmation.
 /// Drawn using a small descending line, followed by a larger ascending line.
-///
-/// #### Arguments
-/// * `number_of_points`: Number of points to draw the tick
-/// * `size`: Size of the tick
-pub fn confirm_template(number_of_points: usize, size: f32) -> Template {
+pub fn confirm_template() -> Template {
     let mut confirm_points = Path2D::default();
-    let step = size / number_of_points as f32;
+    let step = SHAPE_SIZE / POINTS_PER_FIGURE as f32;
     let mut x = 0.0;
     let mut y = 0.0;
 
-    for i in 0..number_of_points {
+    for i in 0..POINTS_PER_FIGURE {
         x += step;
-        if i <= number_of_points / 3 { // Descending line for 1/3 of points
+        if i <= POINTS_PER_FIGURE / 3 { // Descending line for 1/3 of points
             y -= 1.5 * step;
         } else { // Ascending line for 2/3 of points
             y += 1.0 * step;
@@ -197,39 +204,37 @@ pub fn confirm_template(number_of_points: usize, size: f32) -> Template {
     Template::new("Confirm".to_string(), &confirm_points).unwrap()
 }
 
-/// Template representing a "cross"/"x", used as rejection.
-/// Drawn using two lines crossing each other, with another line joining the ends
+/// Template representing a "cross"/"x", used as cancellation.
+/// Drawn using two lines crossing each other, with another line joining the ends (⋊)
 /// (because it's how the mouse path is drawn)
 /// #### Arguments
-/// * `number_of_points`: Number of points to draw the cross
-/// * `size`: Size of the cross
 /// * `invert_direction`: If true, draw the cross in the opposite direction
-pub fn reject_template(number_of_points: usize, size: f32, invert_direction: bool) -> Template {
-    let mut reject_points = Path2D::default();
-    let step = size / number_of_points as f32;
+pub fn cancel_template(invert_direction: bool) -> Template {
+    let mut cancel_points = Path2D::default();
+    let step = SHAPE_SIZE / POINTS_PER_FIGURE as f32;
     let mut x = 0.0;
     let mut y = 0.0;
 
-    for i in 0..number_of_points {
-        if i <= number_of_points / 3 { // First line, from bottom-left to top-right
+    for i in 0..POINTS_PER_FIGURE {
+        if i <= POINTS_PER_FIGURE / 3 { // First line, from bottom-left to top-right
             x += step;
             y += step;
-        } else if i <= number_of_points * 2 / 3 { // Second line, vertical (descending)
+        } else if i <= POINTS_PER_FIGURE * 2 / 3 { // Second line, vertical (descending)
             y -= step;
         } else { // Third line, from bottom-right to top-left
             x -= step;
             y += step;
         }
 
-        reject_points.push(x, y);
+        cancel_points.push(x, y);
     }
 
     if invert_direction {
-        let mut reject_points_new = Path2D::default();
-        reject_points.points().iter().rev().for_each(|(x, y)| reject_points_new.push(*x, *y));
-        reject_points = reject_points_new;
+        let mut cancel_points_new = Path2D::default();
+        cancel_points.points().iter().rev().for_each(|(x, y)| cancel_points_new.push(*x, *y));
+        cancel_points = cancel_points_new;
     }
-    Template::new("Reject".to_string(), &reject_points).unwrap()
+    Template::new("Cancel".to_string(), &cancel_points).unwrap()
 }
 
 /// Draw a shape using plotters
@@ -341,7 +346,7 @@ pub fn all_points_similar(points: &VecDeque<Mouse>) -> bool {
             _ => {}
         }
     }
-    return true;
+    true
 }
 
 /// Convert a list of points to a scaled&centered Path2D
@@ -393,13 +398,17 @@ pub fn points_to_path(points: &VecDeque<Mouse>, max_range_for_dimensions: i32) -
     path
 }
 
-pub fn wait_for_symbol(number_of_points: usize, templates: &Vec<Template>) -> Option<Shape> {
+pub fn wait_for_symbol(templates: &Vec<Template>, stop_condition: Arc<Mutex<bool>>) -> Option<Shape> {
     let mut points = VecDeque::new(); // Circular buffer: a point is added at the end and removed from the front
     let mouse_sampling_time_ms = 10; // Time between each sampling of the mouse position
     let guess_threshold = 0.9;  // Threshold for the guessture algorithm. If the similarity is above this threshold, the shape is detected
 
     loop {
-        if points.len() == number_of_points { points.pop_front(); } // Buffer is full, remove the oldest point
+        // Exit the loop if the stop condition is verified
+        let lock = stop_condition.lock();
+        if lock.is_ok() && *lock.unwrap() { return None; }
+
+        if points.len() == POINTS_PER_FIGURE { points.pop_front(); } // Buffer is full, remove the oldest point
 
         let position = Mouse::get_mouse_position();
         match position {
@@ -407,25 +416,10 @@ pub fn wait_for_symbol(number_of_points: usize, templates: &Vec<Template>) -> Op
             Mouse::Error => { return None; }  // Exit the loop if an error occurs
         }
 
-        if points.len() < number_of_points { continue; }    // Wait until the buffer is full
-        if all_points_similar(&points) { continue; } // If the points are all similar, skip the detection (mouse not moving)
-
-        let shape = detect_shape(&points, &templates, guess_threshold);
-        if shape.is_some() {
-            // For debug, convert the points to a Path2D and draw the shape comparison
-            // let path = points_to_path(&points, 250);
-            // let template_path = match shape.clone().unwrap() {
-            //     Shape::Circle => templates.iter().find(|template| template.name == "Circle").unwrap().path.clone(),
-            //     Shape::Square => templates.iter().find(|template| template.name == "Square").unwrap().path.clone(),
-            //     Shape::Triangle => templates.iter().find(|template| template.name == "Triangle").unwrap().path.clone(),
-            //     Shape::Cross => templates.iter().find(|template| template.name == "Reject").unwrap().path.clone(),
-            //     Shape::Tick => templates.iter().find(|template| template.name == "Confirm").unwrap().path.clone(),
-            //     _ => Path2D::default(),
-            // };
-            // draw_multiple_shapes(vec![path, template_path], "detected_shape.png".to_string());
-
-            points.clear(); // Clear the points buffer, so the shape is not detected again (not necessary if I return)
-            return shape;
+        // The buffer is full and the mouse is moving (not all points are similar)
+        if points.len() == POINTS_PER_FIGURE && !all_points_similar(&points) {
+            let shape = detect_shape(&points, &templates, guess_threshold);
+            if shape.is_some() { return shape; }
         }
 
         sleep(Duration::from_millis(mouse_sampling_time_ms));
