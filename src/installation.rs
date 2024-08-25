@@ -2,8 +2,7 @@ use auto_launch::AutoLaunch;
 use std::env;
 use std::thread::current;
 
-pub fn install_application() {
-
+fn auto_launch() -> AutoLaunch {
     // Get the path of the executable
     let current_exe = env::current_exe().expect("Impossibile ottenere il path dell'eseguibile");
     let mut app_path = current_exe.to_str().unwrap().to_string();
@@ -14,7 +13,11 @@ pub fn install_application() {
     }
 
     let app_name = "backup_application";
-    let auto = AutoLaunch::new(app_name, app_path.as_str(), &[] as &[&str]);
+    AutoLaunch::new(app_name, app_path.as_str(), &[] as &[&str])
+}
+
+pub fn install_application() {
+    let auto = auto_launch();
 
     // If already installed, do nothing
     if auto.is_enabled().unwrap() {
@@ -27,5 +30,22 @@ pub fn install_application() {
         eprintln!("Error during auto-launch configuration: {}", e);
     } else {
         println!("Auto-launch configured correctly.");
+    }
+}
+
+pub fn uninstall_application() {
+    let auto = auto_launch();
+
+    // If already uninstalled, do nothing
+    if !auto.is_enabled().unwrap() {
+        println!("Auto-launch is not installed at the moment.");
+        return;
+    }
+
+    // Disable the auto launch, get error message if it fails
+    if let Err(e) = auto.disable() {
+        eprintln!("Error during auto-launch unconfiguration: {}", e);
+    } else {
+        println!("Auto-launch unconfigured correctly.");
     }
 }
