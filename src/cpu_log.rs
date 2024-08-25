@@ -2,6 +2,7 @@ use std::fs::OpenOptions;
 use std::io::Write;
 use std::thread::sleep;
 use std::time::Duration;
+use dirs::config_dir;
 use sysinfo::{Pid, ProcessRefreshKind, ProcessesToUpdate, System};
 
 pub fn cpu_logpose() -> Result<(), std::io::Error> {
@@ -36,7 +37,17 @@ pub fn cpu_logpose() -> Result<(), std::io::Error> {
 
 fn cpu_logfile(cpu_usage: f32) -> std::io::Result<()> {
     // Specify the file path
-    let file_path = "cpu_logfile.txt";
+    let mut file_path = config_dir().expect("Impossibile trovare la directory di configurazione");
+
+    // add the directory to the path
+    file_path.push("BackupFile");
+    file_path.push("cpu_logfile.txt");
+
+    // create the directory if it doesn't exist
+    std::fs::create_dir_all(file_path.parent().unwrap())?;
+
+    //you will find where the log file is saved
+    //println!("Current directory: {:?}", file_path);
 
     // Open the file in append mode, create it if it doesn't exist
     let mut file = OpenOptions::new()
