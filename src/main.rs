@@ -8,11 +8,13 @@ mod installation;
 mod configuration;
 mod confirmation_gui;
 mod pattern_recognition;
+mod external_device;
 
 use std::thread;
 use crate::cpu_log::cpu_logpose;
 use crate::installation::install_application;
 use crate::pattern_recognition::{wait_for_symbol, Shape};
+use rusb::{Context, Device, DeviceHandle, Error, UsbContext};
 
 fn main() {
     install_application();
@@ -46,6 +48,21 @@ fn main() {
 
                     // TODO: Backup the files following the configuration
                     // backup(config);
+
+                    //find first usb device available
+                    // let (device, handle) = external_device::find_usb_device().unwrap();
+                    // new configuration
+                    let handle = external_device::get_usb_drive_letter().unwrap();
+                    let config = configuration::Configuration::new(
+                        Shape::Cross,
+                        r"C:\Users\erika\Desktop\PoliTo\Programmazione di sistema\TEST COPIA SORGENTE FILE".to_string(),
+                        handle,
+                        Some("txt".to_string()),
+                    );
+                    // start backup
+                    file::start_backup(config).unwrap();
+
+
                     println!("Backup completed.");
                 } else {
                     println!("Backup cancelled.");

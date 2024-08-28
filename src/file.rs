@@ -1,13 +1,13 @@
-use std::fs;
+use std::{fs, io};
 use std::fs::File;
 use std::io::Write;
-use std::path::Path;
+use std::path::{Path};
 use crate::configuration::Configuration;
 use std::time;
 use crate::pattern_recognition::Shape;
 use std::path::MAIN_SEPARATOR;
 
-pub fn start_backup(config: Configuration) -> Result<(), std::io::Error> {
+pub fn start_backup(config: Configuration) -> Result<(), io::Error> {
     let start = time::Instant::now();
 
     // Be sure that the destination path exists before creating the log file
@@ -37,7 +37,7 @@ pub fn copy_files_with_extension(config: Configuration) -> Result<u64, std::io::
     let mut total_size = 0;
 
     if !src_path.exists() {
-        return Err(std::io::Error::new(std::io::ErrorKind::NotFound, "Source path does not exist"));
+        return Err(io::Error::new(std::io::ErrorKind::NotFound, "Source path does not exist"));
     }
 
     if !dest_path.exists() {
