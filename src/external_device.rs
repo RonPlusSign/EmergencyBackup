@@ -1,8 +1,9 @@
 use std::io::Write;
 use std::process::Command;
 use rusb::{Context, Device, UsbContext};
-use std::fs;
 
+/// This function searches for a connected USB device and returns the device and the drive letter (on Windows)
+/// TODO: maybe not useful, check if it can be removed
 pub fn find_usb_device() -> Option<(Device<Context>, String)> {
     let context = Context::new().unwrap();
     let mut device: Option<(Device<Context>, String)> = None;
@@ -20,7 +21,7 @@ pub fn find_usb_device() -> Option<(Device<Context>, String)> {
                         println!("Dispositivo di memorizzazione di massa trovato!");
 
                         // Find the drive letter of the USB device
-                        if let Some(drive_letter) = get_usb_drive_letter() {
+                        if let Some(drive_letter) = get_usb_drive_path() {
                             device = Some((dev.clone(), drive_letter));
                             break;
                         }
@@ -37,7 +38,13 @@ pub fn find_usb_device() -> Option<(Device<Context>, String)> {
     device
 }
 
-pub fn get_usb_drive_letter() -> Option<String> {
+/// This function executes platform-specific commands to find the drive letter (on Windows)
+/// or mount point (on Linux and macOS) of a connected USB device.
+/// It returns "None" if no USB device is found.
+/// # Returns
+///
+/// * `Option<String>` - The drive letter or mount point of the USB device if found, otherwise `None`.
+pub fn get_usb_drive_path() -> Option<String> {
     #[cfg(target_os = "windows")]
     {
         let output = Command::new("powershell")
@@ -51,6 +58,8 @@ pub fn get_usb_drive_letter() -> Option<String> {
             if !drive_letter.is_empty() {
                 return Some(drive_letter);
             }
+        } else {
+            println!("No USB device found.");
         }
     }
 
@@ -69,6 +78,8 @@ pub fn get_usb_drive_letter() -> Option<String> {
                     return Some(mount.to_string());
                 }
             }
+        } else {
+            println!("No USB device found.");
         }
     }
 
@@ -89,28 +100,14 @@ pub fn get_usb_drive_letter() -> Option<String> {
                     }
                 }
             }
+        } else {
+            println!("No USB device found.");
         }
     }
 
     None
 }
 
-fn list_usb_devices() -> Result<(), rusb::Error> {
-    let context = Context::new()?;
-
-    for device in context.devices()?.iter() {
-        let device_desc = device.device_descriptor()?;
-        println!(
-            "Bus {:03} Device {:03} ID {:04x}:{:04x}",
-            device.bus_number(),
-            device.address(),
-            device_desc.vendor_id(),
-            device_desc.product_id()
-        );
-    }
-
-    Ok(())
-}
 
 #[cfg(test)]
 mod tests {
@@ -131,14 +128,8 @@ mod tests {
     }
 
     #[test]
-    fn test_list_usb_devices() {
-        let result = list_usb_devices();
-        assert!(result.is_ok());
-    }
-
-    #[test]
     fn test_get_usb_drive_letter() {
-        let drive_letter = get_usb_drive_letter();
+        let drive_letter = get_usb_drive_path();
         assert!(drive_letter.is_some());
         println!("Drive letter: {}", drive_letter.unwrap());
     }

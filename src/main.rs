@@ -49,19 +49,18 @@ fn main() {
                     // TODO: Backup the files following the configuration
                     // backup(config);
 
-                    //find first usb device available
-                    // let (device, handle) = external_device::find_usb_device().unwrap();
-                    // new configuration
-                    let handle = external_device::get_usb_drive_letter().unwrap();
-                    let config = configuration::Configuration::new(
-                        Shape::Cross,
-                        r"C:\Users\erika\Desktop\PoliTo\Programmazione di sistema\TEST COPIA SORGENTE FILE".to_string(),
-                        handle,
-                        Some("txt".to_string()),
-                    );
-                    // start backup
-                    file::start_backup(config).unwrap();
+                    //find first usb device available: if found start backup, otherwise show error message
+                    if let Some(path) = external_device::get_usb_drive_path() {
+                        let mut config = configuration::Configuration::load(format!("config/{}.json", symbol).as_str());
+                        config.destination_path = path;
 
+                        // start backup
+                        file::start_backup(config).unwrap();
+                    } else {
+                        println!("No USB device found. Impossible to start the backup.");
+                        //exit and block backup
+                        continue;
+                    }
 
                     println!("Backup completed.");
                 } else {
