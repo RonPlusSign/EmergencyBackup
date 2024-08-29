@@ -1,8 +1,8 @@
+use std::env;
 use std::fs::OpenOptions;
 use std::io::Write;
 use std::thread::sleep;
 use std::time::Duration;
-use dirs::config_dir;
 use sysinfo::{Pid, ProcessRefreshKind, ProcessesToUpdate, System};
 
 pub fn cpu_logpose() -> Result<(), std::io::Error> {
@@ -25,7 +25,7 @@ pub fn cpu_logpose() -> Result<(), std::io::Error> {
             count += 1.0;
         }
 
-        if count == 24.0 {  // 5 seconds * 24 = 2 minutes
+        if count == 2.0 {  // 5 seconds * 24 = 2 minutes
             cpu_use = cpu_single_use / count;
             num_cycles += 1;
             cpu_logfile(cpu_use)?;
@@ -37,17 +37,16 @@ pub fn cpu_logpose() -> Result<(), std::io::Error> {
 
 fn cpu_logfile(cpu_usage: f32) -> std::io::Result<()> {
     // Specify the file path
-    let mut file_path = config_dir().expect("Impossibile trovare la directory di configurazione");
-
-    // add the directory to the path
-    file_path.push("BackupFile");
-    file_path.push("cpu_logfile.txt");
+    let mut file_path = env::current_exe()?.parent().unwrap().to_path_buf();
 
     // create the directory if it doesn't exist
-    std::fs::create_dir_all(file_path.parent().unwrap())?;
+    std::fs::create_dir_all(file_path.clone())?;
+
+    // add the directory to the path
+    file_path.push("cpu_logfile.txt");
 
     //you will find where the log file is saved
-    //println!("Current directory: {:?}", file_path);
+    // println!("Current directory: {:?}", file_path);
 
     // Open the file in append mode, create it if it doesn't exist
     let mut file = OpenOptions::new()
