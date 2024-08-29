@@ -425,3 +425,28 @@ pub fn wait_for_symbol(templates: &Vec<Template>, stop_condition: Arc<Mutex<bool
         sleep(Duration::from_millis(mouse_sampling_time_ms));
     }
 }
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_draw_shape() {
+        let shape = circle_template(false);
+        draw_shape(shape.path.clone(), "circle.png".to_string());
+    }
+
+    #[test]
+    fn test_draw_multiple_shapes() {
+        let shapes = vec![circle_template(false).path.clone(), square_template(false).path.clone(), triangle_template(false).path.clone()];
+        draw_multiple_shapes(shapes, "shapes.png".to_string());
+    }
+
+    #[test]
+    fn test_points_to_path() {
+        let points: VecDeque<Mouse> = vec![Mouse::Position { x: 0, y: 0 }, Mouse::Position { x: 1, y: 1 }, Mouse::Position { x: 2, y: 2 }].into_iter().collect();
+        let path = points_to_path(&points, 100);
+        assert_eq!(path.points().len(), 3);
+    }
+}
