@@ -10,15 +10,20 @@ mod configuration;
 mod confirmation_gui;
 mod pattern_recognition;
 mod external_device;
+mod configuration_gui;
 
-use std::{env, thread};
+use std::thread;
+use rusb::UsbContext;
+use crate::configuration_gui::ConfigurationGui;
+use crate::sounds::use_audio;
 use crate::cpu_log::cpu_logpose;
 use crate::installation::install_application;
 use crate::pattern_recognition::{wait_for_symbol, Shape};
-use rusb::{Context, Device, DeviceHandle, Error, UsbContext};
-use crate::sounds::use_audio;
 
 fn main() {
+    ConfigurationGui::open_window();
+    return;
+
     install_application();
     thread::spawn(use_audio);
     thread::spawn(cpu_logpose);
