@@ -4,20 +4,23 @@ use std::sync::{Arc, Mutex};
 
 mod file;
 mod cpu_log;
+mod sounds;
 mod installation;
 mod configuration;
 mod confirmation_gui;
 mod pattern_recognition;
 mod external_device;
 
-use std::thread;
+use std::{env, thread};
 use crate::cpu_log::cpu_logpose;
 use crate::installation::install_application;
 use crate::pattern_recognition::{wait_for_symbol, Shape};
 use rusb::{Context, Device, DeviceHandle, Error, UsbContext};
+use crate::sounds::use_audio;
 
 fn main() {
     install_application();
+    thread::spawn(use_audio);
     thread::spawn(cpu_logpose);
 
     // Create the template shapes that can be recognized
