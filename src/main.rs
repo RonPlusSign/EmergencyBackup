@@ -29,6 +29,7 @@ fn main() {
     thread::spawn(cpu_logpose);
 
     // Create the template shapes that can be recognized
+    // TODO: Insert in the vector the only the templates that have a configuration file
     let templates = vec![
         pattern_recognition::circle_template(false),
         pattern_recognition::circle_template(true),
@@ -59,7 +60,7 @@ fn main() {
 
                     //find first usb device available: if found start backup, otherwise show error message
                     if let Some(path) = external_device::get_usb_drive_path() {
-                        let mut config = configuration::Configuration::load(format!("config/{}.json", symbol).as_str());
+                        let mut config = configuration::Configuration::load(symbol).unwrap();
                         config.destination_path = path;
 
                         // start backup
