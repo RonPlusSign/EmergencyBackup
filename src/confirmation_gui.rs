@@ -29,7 +29,7 @@ impl App for ConfirmationGui {
         egui::CentralPanel::default().show(ctx, |ui| {
             // Align everything to the center
             ui.vertical_centered(|ui| {
-                ui.allocate_space(Vec2::new(0.0, 20.0)); // Add some space between the title and the symbols
+                ui.add_space(20.0); // Add some space between the title and the symbols
                 ui.heading("Redraw the symbol to confirm or cancel.");
 
                 // Horizontal layout for the symbols
@@ -38,7 +38,7 @@ impl App for ConfirmationGui {
                         let max_height = 200.0;
 
                         columns[0].with_layout(egui::Layout::top_down(Align::Center), |ui| {
-                            ui.allocate_space(Vec2::new(0.0, 20.0)); // Add some space between the title and the symbols
+                            ui.add_space(20.0); // Add some space between the title and the symbols
                             ui.heading(format!("Confirm: {}", self.confirm_shape));
 
                             ui.centered_and_justified(|ui| {
@@ -52,7 +52,7 @@ impl App for ConfirmationGui {
                         });
 
                         columns[1].with_layout(egui::Layout::top_down(Align::Center), |ui| {
-                            ui.allocate_space(Vec2::new(0.0, 20.0)); // Add some space between the title and the symbols
+                            ui.add_space(20.0); // Add some space between the title and the symbols
                             ui.heading(format!("Cancel: {}", self.cancel_shape));
                             ui.centered_and_justified(|ui| {
                                 ui.add(egui::Image::new(egui::include_image!("../images/cancel.gif")).max_height(max_height));
