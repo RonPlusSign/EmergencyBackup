@@ -65,6 +65,19 @@ impl Configuration {
     }
 }
 
+/// Returns the list of shapes for which exists a configuration file
+pub fn shapes_with_config() -> Vec<Shape> {
+    // Keep only the shapes that have a configuration file
+    let shapes = vec![Shape::Circle, Shape::Square, Shape::Triangle];
+    shapes.iter()
+        .filter(|shape| Configuration::get_path(**shape).exists())  // Shapes with a config file
+        .map(|shape| *shape)
+        .collect()
+}
+
+/// Returns true if there is at least one shape configured
+pub fn has_shapes_configured() -> bool { !shapes_with_config().is_empty() }
+
 // TESTS
 #[cfg(test)]
 mod tests {
