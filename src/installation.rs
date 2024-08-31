@@ -4,7 +4,7 @@ use std::thread::current;
 
 fn auto_launch() -> AutoLaunch {
     // Get the path of the executable
-    let current_exe = env::current_exe().expect("Impossibile ottenere il path dell'eseguibile");
+    let current_exe = env::current_exe().expect("Could not get the executable path");
     let mut app_path = current_exe.to_str().unwrap().to_string();
 
     // Add "" around the path if on Linux, in order to create desktop entry
@@ -44,8 +44,8 @@ pub fn uninstall_application() {
 
     // Disable the auto launch, get error message if it fails
     if let Err(e) = auto.disable() {
-        eprintln!("Error during auto-launch unconfiguration: {}", e);
+        eprintln!("Error during auto-launch removal: {}", e);
     } else {
-        println!("Auto-launch unconfigured correctly.");
+        println!("Auto-launch removed correctly.");
     }
 }

@@ -13,6 +13,7 @@ mod external_device;
 mod configuration_gui;
 
 use std::thread;
+use clap::{Arg, ArgAction, ArgMatches, Command};
 use rusb::UsbContext;
 use crate::configuration_gui::ConfigurationGui;
 use crate::sounds::use_audio;
@@ -21,12 +22,19 @@ use crate::installation::install_application;
 use crate::pattern_recognition::{wait_for_symbol, Shape};
 
 fn main() {
-    ConfigurationGui::open_window();
-    return;
+    let matches = get_main_matches(); // Set up clap
+
+    // Check for the presence of flags
+    if matches.get_flag("config") { // TODO: Open config also if no configuration files are present
+        ConfigurationGui::open_window();
+    } else if matches.get_flag("uninstall") {
+        installation::uninstall_application();
+        return;
+    }
 
     install_application();
-    thread::spawn(use_audio);
     thread::spawn(cpu_logpose);
+    thread::spawn(use_audio);      // TODO: This is only done as a test, remove it when the audio is implemented correctly
 
     // Create the template shapes that can be recognized
     // TODO: Insert in the vector the only the templates that have a configuration file
@@ -79,4 +87,14 @@ fn main() {
             }
         }
     }
+}
+
+fn get_main_matches() -> ArgMatches {
+    Command::new("EmergencyBackup")
+        .version("1.0")
+        .author("Andrea Delli (S331998), Andrea Di Battista (S317740), Erika Genova (S332044)")
+        .about("A tool for emergency backups")
+        .arg(Arg::new("config").long("config").help("Configures the backup").action(ArgAction::SetTrue))
+        .arg(Arg::new("uninstall").long("uninstall").help("Uninstalls the program").action(ArgAction::SetTrue))
+        .get_matches()
 }
