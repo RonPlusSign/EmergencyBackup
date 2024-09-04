@@ -1,6 +1,4 @@
-use std::io::Write;
 use std::process::Command;
-use rusb::{UsbContext};
 
 /// This function executes platform-specific commands to find the drive letter (on Windows)
 /// or mount point (on Linux and macOS) of a connected USB device.
