@@ -30,7 +30,7 @@ pub fn start_backup(config: Configuration) -> Result<(), io::Error> {
 /// * `config`: configuration parameters: shape, source path, destination path, optional extension filter
 /// If the extension filter is None, all files are copied.
 /// returns: Result<usize, Error>
-pub fn copy_files_with_extension(config: Configuration) -> Result<u64, std::io::Error> {
+pub fn copy_files_with_extension(config: Configuration) -> Result<u64, io::Error> {
     let src_path = Path::new(&config.source_path);
     let dest_path = Path::new(&config.destination_path);
     let ext = config.extension_filter.as_ref();
