@@ -11,7 +11,6 @@ pub fn cpu_logpose() -> Result<(), std::io::Error> {
     let mut cpu_single_use: f32 = 0.0;
     let mut count = 0.0;
     let mut cpu_use = 0.0;
-    let mut num_cycles = 0;
     loop {
         // Refresh CPU usage to get actual value.
         s.refresh_processes_specifics(
