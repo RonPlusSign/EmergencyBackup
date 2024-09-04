@@ -4,7 +4,6 @@ use eframe::App;
 use eframe::emath::Align;
 use eframe::glow::Context;
 use egui;
-use egui::Vec2;
 use guessture::Template;
 use crate::pattern_recognition::{Shape, wait_for_symbol};
 

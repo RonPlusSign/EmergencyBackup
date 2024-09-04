@@ -1,6 +1,5 @@
 use auto_launch::AutoLaunch;
 use std::env;
-use std::thread::current;
 
 fn auto_launch() -> AutoLaunch {
     // Get the path of the executable

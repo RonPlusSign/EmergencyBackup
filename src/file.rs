@@ -4,8 +4,6 @@ use std::io::Write;
 use std::path::{Path};
 use crate::configuration::Configuration;
 use std::time;
-use crate::pattern_recognition::Shape;
-use std::path::MAIN_SEPARATOR;
 
 pub fn start_backup(config: Configuration) -> Result<(), io::Error> {
     let start = time::Instant::now();
@@ -83,6 +81,7 @@ mod tests {
     use serial_test::serial;
     use crate::pattern_recognition::Shape;
     use super::*;
+    use std::path::MAIN_SEPARATOR;
 
     /// Creates a dummy directory with files for testing purposes.
     ///
