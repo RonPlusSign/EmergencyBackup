@@ -125,7 +125,7 @@ impl App for ConfigurationGui {
             ui.with_layout(Layout::right_to_left(Align::RIGHT), |ui| {
                 // Close button
                 if ui.button("Close").clicked() {
-                    ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+                    ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
                 }
 
                 // Save button (enabled only when all fields are filled, except for the extension filter which is optional)
@@ -153,10 +153,13 @@ impl App for ConfigurationGui {
 }
 
 impl ConfigurationGui {
-    /// Open the configuration window. Returns true if there's at least one configuration saved, false otherwise.
-    pub fn open_window() -> bool {
+    /// Open the configuration window
+    pub fn open_window() {
+        // Load the default configuration or create an empty one
         let default_config = Configuration::load(Shape::Circle);
-        let gui = ConfigurationGui { shape: Shape::Circle, path: PathBuf::new(), extension_filter: String::new() };
+        let gui = if let Some(config) = default_config {
+            ConfigurationGui { shape: config.shape, path: PathBuf::from(config.source_path), extension_filter: config.extension_filter.unwrap_or_default() }
+        } else { ConfigurationGui { shape: Shape::Circle, path: PathBuf::new(), extension_filter: String::new() } };
 
         let (width, height) = (700.0, 300.0);
         let native_options = eframe::NativeOptions {
@@ -172,9 +175,6 @@ impl ConfigurationGui {
 
         // Run the GUI
         eframe::run_native("Configure Emergency Backup", native_options, Box::new(|_cc| Ok(Box::new(gui)))).expect("Failed to run the GUI");
-
-        // TODO: Return true if there's at least one configuration saved, false otherwise
-        false
     }
 
     /// Reload the configuration for the current shape
