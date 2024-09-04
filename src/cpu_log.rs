@@ -10,7 +10,7 @@ pub fn cpu_logpose() -> Result<(), std::io::Error> {
     let cpus: f32 = num_cpus::get() as f32;
     let mut cpu_single_use: f32 = 0.0;
     let mut count = 0.0;
-    let mut cpu_use = 0.0;
+    let mut cpu_use:f32;
     loop {
         // Refresh CPU usage to get actual value.
         s.refresh_processes_specifics(
