@@ -39,7 +39,7 @@ fn main() {
 
     install_application();
     thread::spawn(cpu_logpose);
-    thread::spawn(use_audio);      // TODO: This is only done as a test, remove it when the audio is implemented correctly
+    thread::spawn(|| use_audio("start"));      // TODO: This is only done as a test, remove it when the audio is implemented correctly
 
     // Create the template shapes that can be recognized
     let mut templates = vec![];
@@ -55,6 +55,7 @@ fn main() {
             None => { return; } // Exit the program if an error occurred
             Some(symbol) => {
                 println!("Recognized symbol: {:?}", symbol);
+                thread::spawn(|| use_audio("start"));
                 // TODO: Play sound
 
                 let backup_confirmed = ConfirmationGui::open_window(symbol, Shape::Cross);
@@ -64,6 +65,7 @@ fn main() {
                     if let Some(path) = external_device::get_usb_drive_path() {
                         let mut config = Configuration::load(symbol).unwrap();
                         config.destination_path = path;
+                        thread::spawn(|| use_audio("correct"));
                         // TODO: Play sound?
                         println!("Backup started.");
 
@@ -71,14 +73,17 @@ fn main() {
                         file::start_backup(config).unwrap();
                     } else {
                         eprintln!("No USB device found. Impossible to start the backup.");
+                        thread::spawn(|| use_audio("stop"));
                         // TODO: Play error sound
                         continue;
                     }
 
                     // TODO: Play sound
+                    thread::spawn(|| use_audio("completed"));
                     println!("Backup completed.");
                 } else {
                     println!("Backup cancelled.");
+                    thread::spawn(|| use_audio("stop"));
                     // TODO: Play sound
                     continue;
                 }
