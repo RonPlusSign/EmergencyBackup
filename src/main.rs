@@ -1,4 +1,3 @@
-#![cfg_attr( not(debug_assertions), windows_subsystem = "windows" )] // Hide console window on Windows in release
 // #![windows_subsystem = "windows"] // Hide the console window on Windows
 use confirmation_gui::ConfirmationGui;
 use std::sync::{Arc, Mutex};
@@ -14,6 +13,7 @@ mod external_device;
 mod configuration_gui;
 
 use std::thread;
+use std::thread::sleep;
 use clap::{Arg, ArgAction, ArgMatches, Command};
 
 use crate::configuration_gui::ConfigurationGui;
@@ -32,15 +32,16 @@ fn main() {
         ConfigurationGui::open_window();
         if !has_shapes_configured() {    // If no shapes are configured, exit
             eprintln!("No shapes configured, unable to start backup. Exiting.");
+            return;
         }
+        stop_and_rerun();   // Close the GUI
     } else if matches.get_flag("uninstall") {
         installation::uninstall_application();
         return; // Just uninstall the program
     }
 
-    install_application();
-    thread::spawn(cpu_logpose);
-    thread::spawn(|| use_audio("start"));      // TODO: This is only done as a test, remove it when the audio is implemented correctly
+    install_application();  // Configure auto-start if not already done
+    thread::spawn(cpu_logpose); // Start logging the CPU usage
 
     // Create the template shapes that can be recognized
     let mut templates = vec![];
@@ -50,42 +51,39 @@ fn main() {
         templates.extend(shape_templates);
     }
 
-    loop {
-        let symbol = wait_for_symbol(&templates, Arc::new(Mutex::new(false)));
-        match symbol {
-            None => { return; } // Exit the program if an error occurred
-            Some(symbol) => {
-                println!("Recognized symbol: {:?}", symbol);
-                thread::spawn(|| use_audio("start"));
+    let symbol = wait_for_symbol(&templates, Arc::new(Mutex::new(false)));
+    match symbol {
+        None => { return; } // Exit the program if an error occurred
+        Some(symbol) => {
+            println!("Recognized symbol: {:?}", symbol);
+            thread::spawn(|| use_audio("start"));
+            let backup_confirmed = ConfirmationGui::open_window(symbol, Shape::Cross);
 
-                let backup_confirmed = ConfirmationGui::open_window(symbol, Shape::Cross);
+            if backup_confirmed { // If same symbol, start the backup
+                //find first usb device available: if found start backup, otherwise show error message
+                if let Some(path) = external_device::get_usb_drive_path() {
+                    // Start the backup, saving the files in the USB drive
+                    let mut config = Configuration::load(symbol).unwrap();
+                    config.destination_path = path;
+                    thread::spawn(|| use_audio("correct"));
+                    println!("Backup started.");
+                    file::start_backup(config).unwrap();
 
-                if backup_confirmed { // If same symbol, start the backup
-                    //find first usb device available: if found start backup, otherwise show error message
-                    if let Some(path) = external_device::get_usb_drive_path() {
-                        let mut config = Configuration::load(symbol).unwrap();
-                        config.destination_path = path;
-                        thread::spawn(|| use_audio("correct"));
-                        println!("Backup started.");
-
-                        // start backup
-                        file::start_backup(config).unwrap();
-                    } else {
-                        eprintln!("No USB device found. Impossible to start the backup.");
-                        thread::spawn(|| use_audio("stop"));
-                        continue;
-                    }
-
+                    // Backup completed
                     thread::spawn(|| use_audio("completed"));
                     println!("Backup completed.");
                 } else {
-                    println!("Backup cancelled.");
                     thread::spawn(|| use_audio("stop"));
-                    continue;
+                    eprintln!("No USB device found. Impossible to start the backup.");
                 }
+            } else {
+                thread::spawn(|| use_audio("stop"));
+                println!("Backup cancelled.");
             }
         }
     }
+
+    stop_and_rerun();   // Close the GUI and restart the program
 }
 
 fn get_main_matches() -> ArgMatches {
@@ -96,4 +94,11 @@ fn get_main_matches() -> ArgMatches {
         .arg(Arg::new("config").long("config").help("Configures the backup").action(ArgAction::SetTrue))
         .arg(Arg::new("uninstall").long("uninstall").help("Uninstalls the program").action(ArgAction::SetTrue))
         .get_matches()
+}
+
+/// Restarts the program. This is needed in order to close the GUI properly.
+fn stop_and_rerun() {
+    std::process::Command::new(std::env::current_exe().unwrap()).spawn().expect("Failed to restart the program");
+    sleep(std::time::Duration::from_secs(2)); // Wait for the new process to start
+    std::process::exit(0); // Exit the current process
 }

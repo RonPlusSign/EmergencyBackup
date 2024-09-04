@@ -21,7 +21,7 @@ pub fn install_application() {
 
     // If already installed, do nothing
     if auto.is_enabled().unwrap() {
-        println!("Auto-launch already configured.");
+        // println!("Auto-launch already configured.");
         return;
     }
 
