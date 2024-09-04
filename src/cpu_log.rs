@@ -25,7 +25,7 @@ pub fn cpu_logpose() -> Result<(), std::io::Error> {
             count += 1.0;
         }
 
-        if count == 2.0 {  // 5 seconds * 24 = 2 minutes
+        if count == 24.0 {  // 5 seconds * 24 = 2 minutes
             cpu_use = cpu_single_use / count;
             num_cycles += 1;
             cpu_logfile(cpu_use)?;
