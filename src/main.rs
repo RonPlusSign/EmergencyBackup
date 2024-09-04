@@ -21,7 +21,6 @@ use crate::configuration::{has_shapes_configured, shapes_with_config, Configurat
 
 fn main() {
     install_application();
-    thread::spawn(use_audio);
     thread::spawn(cpu_logpose);
     thread::spawn(|| use_audio("start"));      // TODO: This is only done as a test, remove it when the audio is implemented correctly
 
