@@ -54,9 +54,12 @@ pub fn get_usb_drive_path() -> Option<String> {
             .expect("Failed to execute command");
 
         if output.status.success() {
-            let drive_letter = String::from_utf8_lossy(&output.stdout).trim().to_string();
-            if !drive_letter.is_empty() {
-                return Some(drive_letter);
+            let output_str = String::from_utf8_lossy(&output.stdout);
+            // Split the output by whitespace and get the first drive letter in case there are multiple USB devices
+            let mut drive_letters = output_str.split_whitespace();
+
+            if let Some(drive_letter) = drive_letters.next() {
+                return Some(drive_letter.to_string());
             }
         } else {
             println!("No USB device found.");
